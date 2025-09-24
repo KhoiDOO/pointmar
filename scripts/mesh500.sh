@@ -17,7 +17,7 @@ MODEL="mar_pico"
 TOKEN_EMBED_DIM=3
 
 # Training configuration
-BATCH_SIZE=16
+BATCH_SIZE=32
 EPOCHS=200
 NUM_WORKERS=10
 
@@ -62,50 +62,69 @@ LOG_DIR="$OUTPUT_DIR"
 # Create output directory
 mkdir -p $OUTPUT_DIR
 
+# Generate random port for distributed training
+RANDOM_PORT=$((10000 + RANDOM % 90000))
+
 echo "Starting Mesh500 training..."
 echo "Output directory: $OUTPUT_DIR"
 echo "Dataset path: $DATA_PATH"
+echo "Using port: $RANDOM_PORT"
 
 # Training command
 torchrun \
     --nproc_per_node=1 \
     --nnodes=1 \
+    --master_port $RANDOM_PORT \
     main.py \
-    --dataset_name $DATASET_NAME \
-    --data_path $DATA_PATH \
-    --model $MODEL \
-    --num_points $NUM_POINTS \
-    --token_embed_dim $TOKEN_EMBED_DIM \
     --batch_size $BATCH_SIZE \
     --epochs $EPOCHS \
-    --blr $BASE_LR \
+    \
+    --model $MODEL \
+    \
+    --num_points $NUM_POINTS \
+    --token_embed_dim $TOKEN_EMBED_DIM \
+    \
+    --num_iter $NUM_ITER \
+    --cfg $CFG \
+    --cfg_schedule $CFG_SCHEDULE \
+    --eval_freq $EVAL_FREQ \
+    --save_last_freq $SAVE_LAST_FREQ \
+    --eval_bsz $EVAL_BSZ \
+    --checkpoint_key loss \
+    --checkpoint_mode min \
+    \
     --weight_decay $WEIGHT_DECAY \
-    --warmup_epochs $WARMUP_EPOCHS \
-    --lr_schedule $LR_SCHEDULE \
+    \
+    --grad_checkpointing \
+    --blr $BASE_LR \
     --min_lr $MIN_LR \
+    --lr_schedule $LR_SCHEDULE \
+    --warmup_epochs $WARMUP_EPOCHS \
+    --ema_rate $EMA_RATE \
+    \
     --mask_ratio_min $MASK_RATIO_MIN \
     --grad_clip $GRAD_CLIP \
     --attn_dropout $ATTN_DROPOUT \
     --proj_dropout $PROJ_DROPOUT \
     --buffer_size $BUFFER_SIZE \
+    \
     --diffloss_d $DIFFLOSS_D \
     --diffloss_w $DIFFLOSS_W \
     --num_sampling_steps $NUM_SAMPLING_STEPS \
     --diffusion_batch_mul $DIFFUSION_BATCH_MUL \
     --temperature $TEMPERATURE \
-    --num_iter $NUM_ITER \
-    --cfg $CFG \
-    --cfg_schedule $CFG_SCHEDULE \
-    --ema_rate $EMA_RATE \
-    --eval_freq $EVAL_FREQ \
-    --save_last_freq $SAVE_LAST_FREQ \
-    --eval_bsz $EVAL_BSZ \
-    --num_workers $NUM_WORKERS \
+    \
+    --dataset_name $DATASET_NAME \
+    --data_path $DATA_PATH \
+    \
     --output_dir $OUTPUT_DIR \
     --log_dir $LOG_DIR \
+    --seed 1 \
+    --num_workers $NUM_WORKERS \
     --pin_mem \
-    --grad_checkpointing \
-    --seed 1
+    \
+    --world_size 1
+    
 
 echo "Training completed!"
 echo "Results saved in: $OUTPUT_DIR"
