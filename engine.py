@@ -4,8 +4,8 @@ from typing import Iterable
 
 import torch
 
-import util.misc as misc
-import util.lr_sched as lr_sched
+import pointmar.util.misc as misc
+import pointmar.util.lr_sched as lr_sched
 import shutil
 import numpy as np
 import os

@@ -4,18 +4,19 @@ import numpy as np
 import os
 import time
 from pathlib import Path
-from util.config import save_args_to_json
+from pointmar.util.config import save_args_to_json
 
 import torch
 import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
 
-import util.misc as misc
-from util.misc import NativeScalerWithGradNormCount as NativeScaler
+import pointmar.util.misc as misc
+from pointmar.util.misc import NativeScalerWithGradNormCount as NativeScaler
 
-from models import mar
+from pointmar.models import mar
 from engine import train_one_epoch
 import copy
+import sys
 
 
 def get_args_parser():
@@ -39,6 +40,8 @@ def get_args_parser():
     parser.add_argument('--online_eval', action='store_true')
     parser.add_argument('--evaluate', action='store_true')
     parser.add_argument('--eval_bsz', type=int, default=64, help='generation batch size')
+    parser.add_argument('--checkpoint_key', type=str, default='loss', help='key to use to determine best checkpoint')
+    parser.add_argument('--checkpoint_mode', type=str, default='min', help='mode to use to determine best checkpoint', choices=['min', 'max'])
 
     # Optimizer parameters
     parser.add_argument('--weight_decay', type=float, default=0.02, help='weight decay (default: 0.02)')
@@ -94,7 +97,6 @@ def main(args):
     misc.init_distributed_mode(args)
 
     print('job dir: {}'.format(os.path.dirname(os.path.realpath(__file__))))
-    # print("{}".format(args).replace(', ', ',\n'))
     save_args_to_json(args, os.path.join(args.output_dir, 'config.json'))
 
     device = torch.device(args.device)
@@ -116,14 +118,17 @@ def main(args):
         log_writer = None
 
     if args.dataset_name == 'mesh500':
-        from data.mesh500 import Mesh500
+        from pointmar.data.mesh500 import Mesh500
         dataset_train = Mesh500(args.data_path, num_points=args.num_points)
 
-    print(f"Dataset size: {len(dataset_train)}")
     sampler_train = torch.utils.data.DistributedSampler(
         dataset_train, num_replicas=num_tasks, rank=global_rank, shuffle=True
     )
-    print("Sampler_train = %s" % str(sampler_train))
+    with open(os.path.join(args.output_dir, 'setup.txt'), 'a') as f:
+        # Temporarily redirect stdout to the file
+        sys.stdout = f
+        print("Sampler_train = %s" % str(sampler_train))
+        sys.stdout = sys.__stdout__
 
     data_loader_train = torch.utils.data.DataLoader(
         dataset_train, sampler=sampler_train,
@@ -147,11 +152,14 @@ def main(args):
         grad_checkpointing=args.grad_checkpointing,
     )
 
-    print("Model = %s" % str(model))
-    # following timm: set wd as 0 for bias and norm layers
-    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print("Number of trainable parameters: {}M".format(n_params / 1e6))
-    exit(0)
+    with open(os.path.join(args.output_dir, 'setup.txt'), 'a') as f:
+        # Temporarily redirect stdout to the file
+        sys.stdout = f
+        print("Model = %s" % str(model))
+        # following timm: set wd as 0 for bias and norm layers
+        n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print("Number of trainable parameters: {}M".format(n_params / 1e6))
+        sys.stdout = sys.__stdout__
 
     model.to(device)
     model_without_ddp = model
@@ -160,10 +168,14 @@ def main(args):
 
     if args.lr is None:  # only base_lr is specified
         args.lr = args.blr * eff_batch_size / 256
-
-    print("base lr: %.2e" % (args.lr * 256 / eff_batch_size))
-    print("actual lr: %.2e" % args.lr)
-    print("effective batch size: %d" % eff_batch_size)
+    
+    with open(os.path.join(args.output_dir, 'setup.txt'), 'a') as f:
+        # Temporarily redirect stdout to the file
+        sys.stdout = f
+        print("base lr: %.2e" % (args.lr * 256 / eff_batch_size))
+        print("actual lr: %.2e" % args.lr)
+        print("effective batch size: %d" % eff_batch_size)
+        sys.stdout = sys.__stdout__
 
     if args.distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
@@ -172,8 +184,13 @@ def main(args):
     # no weight decay on bias, norm layers, and diffloss MLP
     param_groups = misc.add_weight_decay(model_without_ddp, args.weight_decay)
     optimizer = torch.optim.AdamW(param_groups, lr=args.lr, betas=(0.9, 0.95))
-    print(optimizer)
+    with open(os.path.join(args.output_dir, 'setup.txt'), 'a') as f:
+        # Temporarily redirect stdout to the file
+        sys.stdout = f
+        print(optimizer)
+        sys.stdout = sys.__stdout__
     loss_scaler = NativeScaler()
+    exit(0)
 
     # resume training
     if args.resume and os.path.exists(os.path.join(args.resume, "checkpoint-last.pth")):
@@ -201,8 +218,18 @@ def main(args):
         raise NotImplementedError
 
     # training
+    if args.checkpoint_mode == 'min':
+        best_metric = float('inf')
+        compare_func = lambda a, b: a < b
+    elif args.checkpoint_mode == 'max':
+        best_metric = -float('inf')
+        compare_func = lambda a, b: a > b
+    else:
+        raise ValueError(f"Invalid checkpoint_mode: {args.checkpoint_mode}")
+    
     print(f"Start training for {args.epochs} epochs")
     start_time = time.time()
+
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             data_loader_train.sampler.set_epoch(epoch)
@@ -224,6 +251,8 @@ def main(args):
         if epoch % args.save_last_freq == 0 or epoch + 1 == args.epochs:
             misc.save_model(args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                             loss_scaler=loss_scaler, epoch=epoch, ema_params=ema_params, epoch_name="last")
+            # save best
+            
 
         # online evaluation
         if args.online_eval and (epoch % args.eval_freq == 0 or epoch + 1 == args.epochs):
