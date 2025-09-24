@@ -1,10 +1,10 @@
 [project]
-name = "point-by-point"
-version = "0.0.2"
+name = "pointmar"
+version = "0.0.4"
 authors = [
   { name="KhoiDOO", email="khoido8899@gmail.com" },
 ]
-description = "point-by-point"
+description = "pointmar"
 readme = "README.md" # Create a README.md file later
 requires-python = ">=3.10"
 classifiers = [
@@ -31,32 +31,19 @@ dependencies = [
   "plotly==6.3.0"
 ]
 
-[tool.setuptools.packages.find]
-where = ["point-by-point"]
-exclude = [
-  "test*", 
-  "build*",
-  "deploy*",
-  "docker*",
-  "outputs*",
-  "wandb*"
-]
-
 [project.urls]
-"Homepage" = "https://github.com/KhoiDOO/point-by-point"
-"Bug Tracker" = "https://github.com/KhoiDOO/point-by-point/issues"
+"Homepage" = "https://github.com/KhoiDOO/pointmar"
+"Bug Tracker" = "https://github.com/KhoiDOO/pointmar/issues"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
-pythonpath = [
-  "."
-]
+pythonpath = ["."]
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["point-by-point"]
+packages = ["pointmar"]
