@@ -18,7 +18,7 @@ TOKEN_EMBED_DIM=3
 
 # Training configuration
 BATCH_SIZE=16
-EPOCHS=400
+EPOCHS=200
 NUM_WORKERS=10
 
 # Learning rate configuration

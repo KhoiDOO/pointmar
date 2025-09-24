@@ -4,6 +4,7 @@ import numpy as np
 import os
 import time
 from pathlib import Path
+from util.config import save_args_to_json
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -93,7 +94,8 @@ def main(args):
     misc.init_distributed_mode(args)
 
     print('job dir: {}'.format(os.path.dirname(os.path.realpath(__file__))))
-    print("{}".format(args).replace(', ', ',\n'))
+    # print("{}".format(args).replace(', ', ',\n'))
+    save_args_to_json(args, os.path.join(args.output_dir, 'config.json'))
 
     device = torch.device(args.device)
 
@@ -149,6 +151,7 @@ def main(args):
     # following timm: set wd as 0 for bias and norm layers
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print("Number of trainable parameters: {}M".format(n_params / 1e6))
+    exit(0)
 
     model.to(device)
     model_without_ddp = model
@@ -204,7 +207,7 @@ def main(args):
         if args.distributed:
             data_loader_train.sampler.set_epoch(epoch)
 
-        train_one_epoch(
+        epoch_metric_logger = train_one_epoch(
             model=model, 
             model_params=model_params, 
             ema_params=ema_params,
