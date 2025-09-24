@@ -1,0 +1,61 @@
+[project]
+name = "point-by-point"
+version = "0.0.1"
+authors = [
+  { name="KhoiDOO", email="khoido8899@gmail.com" },
+]
+description = "point-by-point"
+readme = "README.md" # Create a README.md file later
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  "beartype==0.21.0",
+  "einops==0.8.1",
+  "vector-quantize-pytorch==1.23.1",
+  "accelerate==1.10.0",
+  "pytorch_custom_utils==0.0.21",
+  "ema_pytorch==0.7.7",
+  "pytorch_warmup==0.2.0",
+  "torchinfo==1.8.0",
+  "omegaconf==2.3.0",
+  "datasets==4.0.0",
+  "wandb==0.21.1",
+  "scikit-learn==1.7.1",
+  "x-transformers==2.7.4",
+  "timm==1.0.19",
+  "tensorboard==2.20.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["point-by-point"]
+exclude = [
+  "test*", 
+  "build*",
+  "deploy*",
+  "docker*",
+  "outputs*",
+  "wandb*"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/KhoiDOO/point-by-point"
+"Bug Tracker" = "https://github.com/KhoiDOO/point-by-point/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["point-by-point"]
