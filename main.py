@@ -62,8 +62,6 @@ def get_args_parser():
     parser.add_argument('--buffer_size', type=int, default=64)
 
     # Diffusion Loss params
-    parser.add_argument('--diffloss_d', type=int, default=12)
-    parser.add_argument('--diffloss_w', type=int, default=1536)
     parser.add_argument('--num_sampling_steps', type=str, default="100")
     parser.add_argument('--diffusion_batch_mul', type=int, default=1)
     parser.add_argument('--temperature', default=1.0, type=float, help='diffusion loss sampling temperature')
@@ -145,8 +143,6 @@ def main(args):
         attn_dropout=args.attn_dropout,
         proj_dropout=args.proj_dropout,
         buffer_size=args.buffer_size,
-        diffloss_d=args.diffloss_d,
-        diffloss_w=args.diffloss_w,
         num_sampling_steps=args.num_sampling_steps,
         diffusion_batch_mul=args.diffusion_batch_mul,
         grad_checkpointing=args.grad_checkpointing,
@@ -190,7 +186,6 @@ def main(args):
         print(optimizer)
         sys.stdout = sys.__stdout__
     loss_scaler = NativeScaler()
-    exit(0)
 
     # resume training
     if args.resume and os.path.exists(os.path.join(args.resume, "checkpoint-last.pth")):
@@ -249,10 +244,29 @@ def main(args):
 
         # save checkpoint
         if epoch % args.save_last_freq == 0 or epoch + 1 == args.epochs:
-            misc.save_model(args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
-                            loss_scaler=loss_scaler, epoch=epoch, ema_params=ema_params, epoch_name="last")
+            misc.save_model(
+                args=args, 
+                model=model, 
+                model_without_ddp=model_without_ddp, 
+                optimizer=optimizer,
+                loss_scaler=loss_scaler, 
+                epoch=epoch, 
+                ema_params=ema_params, 
+                epoch_name="last"
+            )
             # save best
-            
+            if compare_func(epoch_metric_logger[args.checkpoint_key], best_metric):
+                best_metric = epoch_metric_logger[args.checkpoint_key]
+                misc.save_model(
+                    args=args, 
+                    model=model, 
+                    model_without_ddp=model_without_ddp, 
+                    optimizer=optimizer,
+                    loss_scaler=loss_scaler, 
+                    epoch=epoch, 
+                    ema_params=ema_params, 
+                    epoch_name="best"
+                )
 
         # online evaluation
         if args.online_eval and (epoch % args.eval_freq == 0 or epoch + 1 == args.epochs):
