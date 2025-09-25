@@ -18,7 +18,7 @@ TOKEN_EMBED_DIM=3
 
 # Training configuration
 BATCH_SIZE=32
-EPOCHS=200
+EPOCHS=50
 NUM_WORKERS=10
 
 # Learning rate configuration
@@ -36,8 +36,6 @@ PROJ_DROPOUT=0.1
 BUFFER_SIZE=64
 
 # Diffusion Loss parameters
-DIFFLOSS_D=6
-DIFFLOSS_W=512
 NUM_SAMPLING_STEPS="100"
 DIFFUSION_BATCH_MUL=1
 TEMPERATURE=1.0
@@ -108,8 +106,6 @@ torchrun \
     --proj_dropout $PROJ_DROPOUT \
     --buffer_size $BUFFER_SIZE \
     \
-    --diffloss_d $DIFFLOSS_D \
-    --diffloss_w $DIFFLOSS_W \
     --num_sampling_steps $NUM_SAMPLING_STEPS \
     --diffusion_batch_mul $DIFFUSION_BATCH_MUL \
     --temperature $TEMPERATURE \
