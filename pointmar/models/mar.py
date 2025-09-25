@@ -133,14 +133,28 @@ class PointMAR(nn.Module):
         orders = torch.Tensor(np.array(orders)).cuda().long()
         return orders
 
+    def raster_order_masking(self, x: torch.Tensor):
+        bsz, seq_len, embed_dim = x.shape
+        mask_rate = self.mask_ratio_generator.rvs(1)[0]
+        num_masked_tokens = int(np.ceil(seq_len * mask_rate))
+        num_visible_tokens = seq_len - num_masked_tokens
+        
+        # Create mask: first tokens are visible (0), later tokens are masked (1)
+        mask = torch.ones(bsz, seq_len, device=x.device)  # Start with all masked
+        
+        # Set first num_visible_tokens to 0 (visible)
+        visible_indices = torch.arange(num_visible_tokens, device=x.device).unsqueeze(0).repeat(bsz, 1)
+        mask = torch.scatter(mask, dim=-1, index=visible_indices, src=torch.zeros(bsz, num_visible_tokens, device=x.device))
+        
+        return mask
+
     def random_masking(self, x: torch.Tensor, orders: torch.Tensor):
         # generate token mask
         bsz, seq_len, embed_dim = x.shape
         mask_rate = self.mask_ratio_generator.rvs(1)[0]
         num_masked_tokens = int(np.ceil(seq_len * mask_rate))
         mask = torch.zeros(bsz, seq_len, device=x.device)
-        mask = torch.scatter(mask, dim=-1, index=orders[:, :num_masked_tokens],
-                             src=torch.ones(bsz, seq_len, device=x.device))
+        mask = torch.scatter(mask, dim=-1, index=orders[:, :num_masked_tokens], src=torch.ones(bsz, seq_len, device=x.device))
         return mask
 
     def forward_mae_encoder(self, x: torch.Tensor, mask: torch.Tensor):
@@ -210,8 +224,7 @@ class PointMAR(nn.Module):
         # patchify and mask (drop) tokens
         x = points
         gt_latents = x.clone().detach()
-        orders = self.sample_orders(bsz=x.size(0))
-        mask = self.random_masking(x, orders)
+        mask = self.raster_order_masking(x)
 
         # mae encoder
         x = self.forward_mae_encoder(x, mask)
@@ -281,35 +294,55 @@ def mar_pico(**kwargs):
     model = PointMAR(
         encoder_embed_dim=128, encoder_depth=4, encoder_num_heads=4,
         decoder_embed_dim=128, decoder_depth=4, decoder_num_heads=4,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        diffloss_d=3,
+        diffloss_w=128,
+        **kwargs
+    )
     return model
 
 def mar_nano(**kwargs):
     model = PointMAR(
         encoder_embed_dim=256, encoder_depth=4, encoder_num_heads=5,
         decoder_embed_dim=256, decoder_depth=4, decoder_num_heads=5,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        diffloss_d=3,
+        diffloss_w=256,
+        **kwargs
+    )
     return model
 
 def mar_tiny(**kwargs):
     model = PointMAR(
         encoder_embed_dim=384, encoder_depth=6, encoder_num_heads=6,
         decoder_embed_dim=384, decoder_depth=6, decoder_num_heads=6,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        diffloss_d=4,
+        diffloss_w=512,
+        **kwargs
+    )
     return model
 
 def mar_small(**kwargs):
     model = PointMAR(
         encoder_embed_dim=512, encoder_depth=8, encoder_num_heads=8,
         decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=8,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        diffloss_d=4,
+        diffloss_w=768,
+        **kwargs
+    )
     return model
 
 def mar_base(**kwargs):
     model = PointMAR(
         encoder_embed_dim=768, encoder_depth=12, encoder_num_heads=12,
         decoder_embed_dim=768, decoder_depth=12, decoder_num_heads=12,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        diffloss_d=6,
+        diffloss_w=1024,
+        **kwargs
+    )
     return model
 
 
@@ -317,7 +350,11 @@ def mar_large(**kwargs):
     model = PointMAR(
         encoder_embed_dim=1024, encoder_depth=16, encoder_num_heads=16,
         decoder_embed_dim=1024, decoder_depth=16, decoder_num_heads=16,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        diffloss_d=8,
+        diffloss_w=1280,
+        **kwargs
+    )
     return model
 
 
@@ -325,7 +362,11 @@ def mar_huge(**kwargs):
     model = PointMAR(
         encoder_embed_dim=1280, encoder_depth=20, encoder_num_heads=16,
         decoder_embed_dim=1280, decoder_depth=20, decoder_num_heads=16,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        diffloss_d=12,
+        diffloss_w=1536,
+        **kwargs
+    )
     return model
 
 
@@ -347,55 +388,3 @@ class PointMARPipeline(
         pkg = torch.load(str(path), map_location="cpu", weights_only=False)
 
         self.load_state_dict(pkg['model'])
-
-
-def mar_pico_pipeline(**kwargs):
-    model = PointMARPipeline(
-        encoder_embed_dim=128, encoder_depth=4, encoder_num_heads=4,
-        decoder_embed_dim=128, decoder_depth=4, decoder_num_heads=4,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
-    return model
-
-def mar_nano_pipeline(**kwargs):
-    model = PointMARPipeline(
-        encoder_embed_dim=256, encoder_depth=4, encoder_num_heads=5,
-        decoder_embed_dim=256, decoder_depth=4, decoder_num_heads=5,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
-    return model
-
-def mar_tiny_pipeline(**kwargs):
-    model = PointMARPipeline(
-        encoder_embed_dim=384, encoder_depth=6, encoder_num_heads=6,
-        decoder_embed_dim=384, decoder_depth=6, decoder_num_heads=6,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
-    return model
-
-def mar_small_pipeline(**kwargs):
-    model = PointMARPipeline(
-        encoder_embed_dim=512, encoder_depth=8, encoder_num_heads=8,
-        decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=8,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
-    return model
-
-def mar_base_pipeline(**kwargs):
-    model = PointMARPipeline(
-        encoder_embed_dim=768, encoder_depth=12, encoder_num_heads=12,
-        decoder_embed_dim=768, decoder_depth=12, decoder_num_heads=12,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
-    return model
-
-
-def mar_large_pipeline(**kwargs):
-    model = PointMARPipeline(
-        encoder_embed_dim=1024, encoder_depth=16, encoder_num_heads=16,
-        decoder_embed_dim=1024, decoder_depth=16, decoder_num_heads=16,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
-    return model
-
-
-def mar_huge_pipeline(**kwargs):
-    model = PointMARPipeline(
-        encoder_embed_dim=1280, encoder_depth=20, encoder_num_heads=16,
-        decoder_embed_dim=1280, decoder_depth=20, decoder_num_heads=16,
-        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
-    return model
