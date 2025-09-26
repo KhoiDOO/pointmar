@@ -128,7 +128,7 @@ class PointMAR(nn.Module):
         orders = []
         for _ in range(bsz):
             order = np.array(list(range(self.seq_len)))
-            # np.random.shuffle(order)
+            np.random.shuffle(order)
             orders.append(order)
         orders = torch.Tensor(np.array(orders)).cuda().long()
         return orders
@@ -224,7 +224,8 @@ class PointMAR(nn.Module):
         # patchify and mask (drop) tokens
         x = points
         gt_latents = x.clone().detach()
-        mask = self.raster_order_masking(x)
+        orders = self.sample_orders(bsz=x.size(0))
+        mask = self.random_masking(x, orders)
 
         # mae encoder
         x = self.forward_mae_encoder(x, mask)
