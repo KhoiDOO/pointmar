@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dokh-celeba64vqvae-mhvq
+  name: shapenet1024
 spec:
   ttlSecondsAfterFinished: 60
   template:
@@ -45,7 +45,8 @@ spec:
             torchrun \
             --nproc_per_node=4 \
             --nnodes=1 \
-            --batch_size $BATCH_SIZE \
+            main.py \
+            --batch_size 32 \
             --epochs 400 \
             \
             --model mar_base \
@@ -94,7 +95,6 @@ spec:
 
         volumeMounts:
         - {name: project, mountPath: /mnt/project}
-        - {name: data, mountPath: /mnt/data}
         - {name: dshm, mountPath: /dev/shm}
         resources:
           limits:   { nvidia.com/gpu: 4, cpu: "24",  memory: "64Gi" }
