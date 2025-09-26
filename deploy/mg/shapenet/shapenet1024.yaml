@@ -40,8 +40,8 @@ spec:
               git clone https://${GITHUB_TOKEN}@github.com/KhoiDOO/pointmar.git
               cd pointmar/
             fi
-            OUTPUT_DIR="./outputs/shapenet/$(date +%Y%m%d_%H%M%S)" \
-            LOG_DIR="$OUTPUT_DIR" \
+            OUTPUT_DIR="./outputs/shapenet/$(date +%Y%m%d_%H%M%S)"
+            LOG_DIR="$OUTPUT_DIR"
             torchrun \
             --nproc_per_node=4 \
             --nnodes=1 \
