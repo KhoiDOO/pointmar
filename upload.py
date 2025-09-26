@@ -1,6 +1,6 @@
-from models import mar
-from models.mar import PointMARPipeline
-from util.config import load_args_from_json
+from pointmar.models import mar
+from pointmar.models.mar import PointMARPipeline
+from pointmar.util.config import load_args_from_json
 
 import os
 import argparse
@@ -21,8 +21,6 @@ if __name__ == "__main__":
         attn_dropout=args.attn_dropout,
         proj_dropout=args.proj_dropout,
         buffer_size=args.buffer_size,
-        diffloss_d=args.diffloss_d,
-        diffloss_w=args.diffloss_w,
         num_sampling_steps=args.num_sampling_steps,
         diffusion_batch_mul=args.diffusion_batch_mul,
         grad_checkpointing=args.grad_checkpointing,
