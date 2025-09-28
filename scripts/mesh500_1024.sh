@@ -18,7 +18,7 @@ TOKEN_EMBED_DIM=3
 
 # Training configuration
 BATCH_SIZE=32
-EPOCHS=50
+EPOCHS=400
 NUM_WORKERS=10
 
 # Learning rate configuration
@@ -116,6 +116,7 @@ torchrun \
     --output_dir $OUTPUT_DIR \
     --log_dir $LOG_DIR \
     --seed 1 \
+    --use_wandb \
     --num_workers $NUM_WORKERS \
     --pin_mem \
     \
