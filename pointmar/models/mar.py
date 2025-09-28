@@ -316,10 +316,7 @@ class PointMAR(nn.Module):
 
             # get masking for next iteration and locations to be predicted in this iteration
             mask_next = mask_by_order(mask_len[0], orders, bsz, self.seq_len)
-            if buffer_step >= num_buffer_iter - 1:
-                mask_to_pred = mask[:bsz].bool()
-            else:
-                mask_to_pred = torch.logical_xor(mask[:bsz].bool(), mask_next.bool())
+            mask_to_pred = torch.logical_xor(mask[:bsz].bool(), mask_next.bool())
             mask = mask_next
 
             tokens[mask_to_pred.nonzero(as_tuple=True)] = points[mask_to_pred.nonzero(as_tuple=True)]

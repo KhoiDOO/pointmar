@@ -124,7 +124,7 @@ def main(args):
 
     if args.dataset_name == 'mesh500':
         from pointmar.data.mesh500 import Mesh500
-        dataset_train = Mesh500(args.data_path, num_points=args.num_points)
+        dataset_train = Mesh500(args.data_path, num_points=args.num_points, augment=True)
     elif args.dataset_name == 'shapenet':
         from pointmar.data.shapenet import ShapeNet
         dataset_train = ShapeNet(args.data_path, num_points=args.num_points, augment=True)
