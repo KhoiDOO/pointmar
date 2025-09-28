@@ -291,6 +291,85 @@ class PointMAR(nn.Module):
         
         return tokens
 
+    def sample_tokens_from_points(self, points, num_buffer_iter=1, num_iter=64, cfg_schedule="linear", temperature=1.0, progress=False):
+
+        bsz = points.size(0)
+        mask = torch.ones(bsz, self.seq_len).cuda()
+        tokens = torch.zeros(bsz, self.seq_len, self.token_embed_dim).cuda()
+        orders = self.sample_orders(bsz)
+
+        buffer_indices = list(range(num_buffer_iter))
+        if progress:
+            buffer_indices = tqdm(buffer_indices)
+
+        # buffer latents
+        for buffer_step in buffer_indices:
+            # mask ratio for the next round, following MaskGIT and MAGE.
+            mask_ratio = np.cos(math.pi / 2. * (buffer_step + 1) / num_buffer_iter)
+            mask_len = torch.Tensor([np.floor(self.seq_len * mask_ratio)]).cuda()
+
+            # masks out at least one for the next iteration
+            mask_len = torch.maximum(
+                torch.Tensor([1]).cuda(),
+                torch.minimum(torch.sum(mask, dim=-1, keepdims=True) - 1, mask_len)
+            )
+
+            # get masking for next iteration and locations to be predicted in this iteration
+            mask_next = mask_by_order(mask_len[0], orders, bsz, self.seq_len)
+            if buffer_step >= num_buffer_iter - 1:
+                mask_to_pred = mask[:bsz].bool()
+            else:
+                mask_to_pred = torch.logical_xor(mask[:bsz].bool(), mask_next.bool())
+            mask = mask_next
+
+            tokens[mask_to_pred.nonzero(as_tuple=True)] = points[mask_to_pred.nonzero(as_tuple=True)]
+        
+        # generate latents
+        indices = list(range(num_buffer_iter, num_iter))
+        if progress:
+            indices = tqdm(indices)
+        
+        for step in indices:
+            cur_tokens = tokens.clone()
+            
+            # mae encoder
+            x = self.forward_mae_encoder(tokens, mask)
+
+            # mae decoder
+            z = self.forward_mae_decoder(x, mask)
+
+            # mask ratio for the next round, following MaskGIT and MAGE.
+            mask_ratio = np.cos(math.pi / 2. * (step + 1) / num_iter)
+            mask_len = torch.Tensor([np.floor(self.seq_len * mask_ratio)]).cuda()
+
+            # masks out at least one for the next iteration
+            mask_len = torch.maximum(torch.Tensor([1]).cuda(),
+                                     torch.minimum(torch.sum(mask, dim=-1, keepdims=True) - 1, mask_len))
+
+            # get masking for next iteration and locations to be predicted in this iteration
+            mask_next = mask_by_order(mask_len[0], orders, bsz, self.seq_len)
+            if step >= num_iter - 1:
+                mask_to_pred = mask[:bsz].bool()
+            else:
+                mask_to_pred = torch.logical_xor(mask[:bsz].bool(), mask_next.bool())
+            mask = mask_next
+
+            # sample token latents for this step
+            z = z[mask_to_pred.nonzero(as_tuple=True)]
+            # cfg schedule follow Muse
+            if cfg_schedule == "linear":
+                cfg_iter = 1
+            elif cfg_schedule == "constant":
+                cfg_iter = 1
+            else:
+                raise NotImplementedError
+            sampled_token_latent = self.diffloss.sample(z, temperature, cfg_iter)
+
+            cur_tokens[mask_to_pred.nonzero(as_tuple=True)] = sampled_token_latent
+            tokens = cur_tokens.clone()
+        
+        return tokens
+
 def mar_pico(**kwargs):
     model = PointMAR(
         encoder_embed_dim=128, encoder_depth=4, encoder_num_heads=4,
@@ -389,3 +468,83 @@ class PointMARPipeline(
         pkg = torch.load(str(path), map_location="cpu", weights_only=False)
 
         self.load_state_dict(pkg['model'])
+
+
+def mar_pico_pipeline(**kwargs):
+    model = PointMARPipeline(
+        encoder_embed_dim=128, encoder_depth=4, encoder_num_heads=4,
+        decoder_embed_dim=128, decoder_depth=4, decoder_num_heads=4,
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        diffloss_d=3,
+        diffloss_w=128,
+        **kwargs
+    )
+    return model
+
+def mar_nano_pipeline(**kwargs):
+    model = PointMARPipeline(
+        encoder_embed_dim=256, encoder_depth=4, encoder_num_heads=5,
+        decoder_embed_dim=256, decoder_depth=4, decoder_num_heads=5,
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        diffloss_d=3,
+        diffloss_w=256,
+        **kwargs
+    )
+    return model
+
+def mar_tiny_pipeline(**kwargs):
+    model = PointMARPipeline(
+        encoder_embed_dim=384, encoder_depth=6, encoder_num_heads=6,
+        decoder_embed_dim=384, decoder_depth=6, decoder_num_heads=6,
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        diffloss_d=4,
+        diffloss_w=512,
+        **kwargs
+    )
+    return model
+
+def mar_small_pipeline(**kwargs):
+    model = PointMARPipeline(
+        encoder_embed_dim=512, encoder_depth=8, encoder_num_heads=8,
+        decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=8,
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        diffloss_d=4,
+        diffloss_w=768,
+        **kwargs
+    )
+    return model
+
+def mar_base_pipeline(**kwargs):
+    model = PointMARPipeline(
+        encoder_embed_dim=768, encoder_depth=12, encoder_num_heads=12,
+        decoder_embed_dim=768, decoder_depth=12, decoder_num_heads=12,
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        diffloss_d=6,
+        diffloss_w=1024,
+        **kwargs
+    )
+    return model
+
+
+def mar_large_pipeline(**kwargs):
+    model = PointMARPipeline(
+        encoder_embed_dim=1024, encoder_depth=16, encoder_num_heads=16,
+        decoder_embed_dim=1024, decoder_depth=16, decoder_num_heads=16,
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        diffloss_d=8,
+        diffloss_w=1280,
+        **kwargs
+    )
+    return model
+
+
+def mar_huge_pipeline(**kwargs):
+    model = PointMARPipeline(
+        encoder_embed_dim=1280, encoder_depth=20, encoder_num_heads=16,
+        decoder_embed_dim=1280, decoder_depth=20, decoder_num_heads=16,
+        mlp_ratio=4, norm_layer=partial(nn.LayerNorm, eps=1e-6), 
+        diffloss_d=12,
+        diffloss_w=1536,
+        **kwargs
+    )
+    return model
