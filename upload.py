@@ -8,31 +8,33 @@ import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Point-MAR inference script')
-    parser.add_argument('--output_dir', type=str, required=True, help='Path to the output directory.')
+    parser.add_argument('--path', type=str, required=True, help='Path to the output directory.')
+    parser.add_argument('--last', action='store_true', help='Use last checkpoint for inference.')
     args = parser.parse_args()
 
-    output_dir = args.output_dir
-    args = load_args_from_json(os.path.join(args.output_dir, 'config.json'))
+    exp_config = load_args_from_json(os.path.join(args.path, 'config.json'))
 
-    pipeline: PointMARPipeline = mar.__dict__[f"{args.model}_pipeline"](
-        num_points=args.num_points,
-        token_embed_dim=args.token_embed_dim,
-        mask_ratio_min=args.mask_ratio_min,
-        attn_dropout=args.attn_dropout,
-        proj_dropout=args.proj_dropout,
-        buffer_size=args.buffer_size,
-        num_sampling_steps=args.num_sampling_steps,
-        diffusion_batch_mul=args.diffusion_batch_mul,
-        grad_checkpointing=args.grad_checkpointing,
+    pipeline: PointMARPipeline = mar.__dict__[f"{exp_config.model}_pipeline"](
+        num_points=exp_config.num_points,
+        token_embed_dim=exp_config.token_embed_dim,
+        mask_ratio_min=exp_config.mask_ratio_min,
+        attn_dropout=exp_config.attn_dropout,
+        proj_dropout=exp_config.proj_dropout,
+        buffer_size=exp_config.buffer_size,
+        num_sampling_steps=exp_config.num_sampling_steps,
+        diffusion_batch_mul=exp_config.diffusion_batch_mul,
+        grad_checkpointing=exp_config.grad_checkpointing,
     )
 
     n_params = sum(p.numel() for p in pipeline.parameters())
     print("Number of parameters: {}M".format(n_params / 1e6))
 
-    best_checkpoint = os.path.join(output_dir, 'checkpoint-best.pth')
-    last_checkpoint = os.path.join(output_dir, 'checkpoint-last.pth')
+    best_checkpoint = os.path.join(args.path, 'checkpoint-best.pth')
+    last_checkpoint = os.path.join(args.path, 'checkpoint-last.pth')
     print(last_checkpoint, os.path.exists(last_checkpoint))
-    if os.path.exists(best_checkpoint):
+    if args.last:
+        checkpoint_path = last_checkpoint
+    elif os.path.exists(best_checkpoint):
         checkpoint_path = best_checkpoint
     elif os.path.exists(last_checkpoint):
         checkpoint_path = last_checkpoint
@@ -41,7 +43,7 @@ if __name__ == "__main__":
 
     pipeline.load(checkpoint_path)
 
-    repo_id = f"{args.dataset_name}_{args.model}_{args.num_points}pts_{args.token_embed_dim}dim_{args.diffloss_d}_{args.diffloss_w}"
+    repo_id = f"{exp_config.dataset_name}_{exp_config.model}_{exp_config.num_points}pts_{exp_config.token_embed_dim}dim"
 
     try:
         pipeline.push_to_hub(repo_id=repo_id)
