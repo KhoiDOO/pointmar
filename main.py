@@ -9,6 +9,10 @@ from pointmar.util.config import save_args_to_json
 import torch
 import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
+try:
+    import wandb
+except Exception:
+    wandb = None
 
 import pointmar.util.misc as misc
 from pointmar.util.misc import NativeScalerWithGradNormCount as NativeScaler
@@ -75,6 +79,9 @@ def get_args_parser():
     parser.add_argument('--device', default='cuda', help='device to use for training / testing')
     parser.add_argument('--seed', default=1, type=int)
     parser.add_argument('--resume', default='', help='resume from checkpoint')
+    parser.add_argument('--use_wandb', action='store_true', help='Enable logging to Weights & Biases')
+    parser.add_argument('--wandb_project', type=str, default='pointmar', help='wandb project name')
+    parser.add_argument('--wandb_entity', type=str, default='heartbeats', help='wandb entity / team (optional)')
 
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N', help='start epoch')
     parser.add_argument('--num_workers', default=10, type=int)
@@ -163,6 +170,25 @@ def main(args):
     model.to(device)
     model_without_ddp = model
 
+    # initialize wandb if requested
+    if args.use_wandb:
+        if wandb is None:
+            raise RuntimeError("wandb is not installed. Install with `pip install wandb` or unset --use_wandb")
+        # Only initialize on main process
+        if misc.is_main_process():
+            # Use output_dir folder name as run name
+            run_name = Path(args.output_dir).name
+            wandb_init_args = dict(project=args.wandb_project, config=vars(args), name=run_name)
+            if args.wandb_entity:
+                wandb_init_args['entity'] = args.wandb_entity
+            wandb.init(**wandb_init_args)
+            # watch the model to log gradients and parameters (optional)
+            try:
+                wandb.watch(model_without_ddp, log='all', log_freq=100)
+            except Exception as e:
+                # best-effort: don't fail if watch isn't supported for some objects
+                print(f"Failed to watch model with wandb: {e}")
+
     eff_batch_size = args.batch_size * misc.get_world_size()
 
     if args.lr is None:  # only base_lr is specified
@@ -245,6 +271,17 @@ def main(args):
             args=args
         )
 
+        # log to wandb
+        if args.use_wandb and misc.is_main_process():
+            try:
+                # epoch_metric_logger is a dict of averaged stats
+                log_dict = {f"train/{k}": float(v) for k, v in epoch_metric_logger.items()}
+                log_dict['epoch'] = int(epoch)
+                wandb.log(log_dict, step=epoch)
+            except Exception as e:
+                # best-effort logging
+                print(f"Failed to log to wandb: {e}")
+
         # save checkpoint
         if epoch % args.save_last_freq == 0 or epoch + 1 == args.epochs:
             misc.save_model(
@@ -289,6 +326,11 @@ def main(args):
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
+    if args.use_wandb and misc.is_main_process():
+        try:
+            wandb.finish()
+        except Exception as e:
+            print(f"Failed to finish wandb run: {e}")
 
 
 if __name__ == '__main__':
