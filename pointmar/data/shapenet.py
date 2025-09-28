@@ -11,14 +11,14 @@ import random
 
 class ShapeNet(Dataset):
     def __init__(
-            self, 
-            root: str, 
-            num_points: int = 1024,
-            augment: bool = False,
-            scale_min: float = 0.75,
-            scale_max: float = 0.95,
-            rotation: float = 180.0,
-        ) -> None:
+        self, 
+        root: str, 
+        num_points: int = 1024,
+        augment: bool = False,
+        scale_min: float = 0.75,
+        scale_max: float = 0.95,
+        rotation: float = 180.0,
+    ) -> None:
         super().__init__()
 
         if num_points not in [1024]:
@@ -41,7 +41,12 @@ class ShapeNet(Dataset):
         points: np.ndarray = np.array(points) # (self._num_points, 3)
         points = points[np.lexsort((points[:, 2], points[:, 1], points[:, 0]))]
         if self.augment:
-            points = self.augment_func(points, self.scale_min, self.scale_max, self.rotation)
+            points = self.augment_func(
+                points, 
+                self._scale_min, 
+                self._scale_max, 
+                self._rotation
+            )
         # scale to a [-0.5, 0.5] cube
         points = points - np.mean(points, axis=0, keepdims=True)
         max_abs = np.max(np.abs(points))
