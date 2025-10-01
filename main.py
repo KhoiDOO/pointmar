@@ -17,7 +17,7 @@ except Exception:
 import pointmar.util.misc as misc
 from pointmar.util.misc import NativeScalerWithGradNormCount as NativeScaler
 
-from pointmar.models import mar
+from pointmar import models
 from engine import train_one_epoch
 import copy
 import sys
@@ -102,7 +102,8 @@ def main(args):
     misc.init_distributed_mode(args)
 
     print('job dir: {}'.format(os.path.dirname(os.path.realpath(__file__))))
-    save_args_to_json(args, os.path.join(args.output_dir, 'config.json'))
+    if misc.is_main_process():
+        save_args_to_json(args, os.path.join(args.output_dir, 'config.json'))
 
     device = torch.device(args.device)
 
@@ -110,7 +111,6 @@ def main(args):
     seed = args.seed + misc.get_rank()
     torch.manual_seed(seed)
     np.random.seed(seed)
-
     cudnn.benchmark = True
 
     num_tasks = misc.get_world_size()
@@ -132,11 +132,13 @@ def main(args):
     sampler_train = torch.utils.data.DistributedSampler(
         dataset_train, num_replicas=num_tasks, rank=global_rank, shuffle=True
     )
-    with open(os.path.join(args.output_dir, 'setup.txt'), 'a') as f:
-        # Temporarily redirect stdout to the file
-        sys.stdout = f
-        print("Sampler_train = %s" % str(sampler_train))
-        sys.stdout = sys.__stdout__
+
+    if misc.is_main_process():
+        with open(os.path.join(args.output_dir, 'setup.txt'), 'a') as f:
+            # Temporarily redirect stdout to the file
+            sys.stdout = f
+            print("Sampler_train = %s" % str(sampler_train))
+            sys.stdout = sys.__stdout__
 
     data_loader_train = torch.utils.data.DataLoader(
         dataset_train, sampler=sampler_train,
@@ -146,7 +148,7 @@ def main(args):
         drop_last=True,
     )
 
-    model = mar.__dict__[args.model](
+    model = models.__dict__[args.model](
         num_points=args.num_points,
         token_embed_dim=args.token_embed_dim,
         mask_ratio_min=args.mask_ratio_min,
@@ -158,14 +160,15 @@ def main(args):
         grad_checkpointing=args.grad_checkpointing,
     )
 
-    with open(os.path.join(args.output_dir, 'setup.txt'), 'a') as f:
-        # Temporarily redirect stdout to the file
-        sys.stdout = f
-        print("Model = %s" % str(model))
-        # following timm: set wd as 0 for bias and norm layers
-        n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        print("Number of trainable parameters: {}M".format(n_params / 1e6))
-        sys.stdout = sys.__stdout__
+    if misc.is_main_process():
+        with open(os.path.join(args.output_dir, 'setup.txt'), 'a') as f:
+            # Temporarily redirect stdout to the file
+            sys.stdout = f
+            print("Model = %s" % str(model))
+            # following timm: set wd as 0 for bias and norm layers
+            n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+            print("Number of trainable parameters: {}M".format(n_params / 1e6))
+            sys.stdout = sys.__stdout__
 
     model.to(device)
     model_without_ddp = model
@@ -194,13 +197,14 @@ def main(args):
     if args.lr is None:  # only base_lr is specified
         args.lr = args.blr * eff_batch_size / 256
     
-    with open(os.path.join(args.output_dir, 'setup.txt'), 'a') as f:
-        # Temporarily redirect stdout to the file
-        sys.stdout = f
-        print("base lr: %.2e" % (args.lr * 256 / eff_batch_size))
-        print("actual lr: %.2e" % args.lr)
-        print("effective batch size: %d" % eff_batch_size)
-        sys.stdout = sys.__stdout__
+    if misc.is_main_process():
+        with open(os.path.join(args.output_dir, 'setup.txt'), 'a') as f:
+            # Temporarily redirect stdout to the file
+            sys.stdout = f
+            print("base lr: %.2e" % (args.lr * 256 / eff_batch_size))
+            print("actual lr: %.2e" % args.lr)
+            print("effective batch size: %d" % eff_batch_size)
+            sys.stdout = sys.__stdout__
 
     if args.distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
