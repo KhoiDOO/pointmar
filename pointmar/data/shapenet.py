@@ -21,8 +21,8 @@ class ShapeNet(Dataset):
     ) -> None:
         super().__init__()
 
-        if num_points not in [1024]:
-            raise ValueError("num_points should be 1024 for ShapeNet dataset")
+        if num_points not in [1024, 4096]:
+            raise ValueError("num_points should be 1024 or 4096 for ShapeNet dataset")
 
         self._root = root
         self._num_points = num_points
