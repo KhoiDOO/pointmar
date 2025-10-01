@@ -42,6 +42,7 @@ class PointMAR(nn.Module):
         num_sampling_steps:str="100",
         diffusion_batch_mul:int=4,
         grad_checkpointing:bool=False,
+        raster:bool=False,
     ):
         super().__init__()
 
@@ -100,6 +101,10 @@ class PointMAR(nn.Module):
         )
         self.diffusion_batch_mul = diffusion_batch_mul
 
+        # --------------------------------------------------------------------------
+        # Raster-specific
+        self.raster = raster
+
     def initialize_weights(self):
         # parameters
         torch.nn.init.normal_(self.fake_latent, std=.02)
@@ -123,12 +128,13 @@ class PointMAR(nn.Module):
             if m.weight is not None:
                 nn.init.constant_(m.weight, 1.0)
 
-    def sample_orders(self, bsz):
+    def sample_orders(self, bsz, raster=False):
         # generate a batch of random generation orders
         orders = []
         for _ in range(bsz):
             order = np.array(list(range(self.seq_len)))
-            np.random.shuffle(order)
+            if not raster:
+                np.random.shuffle(order)
             orders.append(order)
         orders = torch.Tensor(np.array(orders)).cuda().long()
         return orders
@@ -140,6 +146,21 @@ class PointMAR(nn.Module):
         num_masked_tokens = int(np.ceil(seq_len * mask_rate))
         mask = torch.zeros(bsz, seq_len, device=x.device)
         mask = torch.scatter(mask, dim=-1, index=orders[:, :num_masked_tokens], src=torch.ones(bsz, seq_len, device=x.device))
+        return mask
+    
+    def raster_order_masking(self, x: torch.Tensor):
+        bsz, seq_len, embed_dim = x.shape
+        mask_rate = self.mask_ratio_generator.rvs(1)[0]
+        num_masked_tokens = int(np.ceil(seq_len * mask_rate))
+        num_visible_tokens = seq_len - num_masked_tokens
+        
+        # Create mask: first tokens are visible (0), later tokens are masked (1)
+        mask = torch.ones(bsz, seq_len, device=x.device)  # Start with all masked
+        
+        # Set first num_visible_tokens to 0 (visible)
+        visible_indices = torch.arange(num_visible_tokens, device=x.device).unsqueeze(0).repeat(bsz, 1)
+        mask = torch.scatter(mask, dim=-1, index=visible_indices, src=torch.zeros(bsz, num_visible_tokens, device=x.device))
+        
         return mask
 
     def forward_mae_encoder(self, x: torch.Tensor, mask: torch.Tensor):
@@ -209,8 +230,11 @@ class PointMAR(nn.Module):
         # patchify and mask (drop) tokens
         x = points
         gt_latents = x.clone().detach()
-        orders = self.sample_orders(bsz=x.size(0))
-        mask = self.random_masking(x, orders)
+        if self.raster:
+            mask = self.raster_order_masking(x)
+        else:
+            orders = self.sample_orders(bsz=x.size(0), raster=self.raster)
+            mask = self.random_masking(x, orders)
 
         # mae encoder
         x = self.forward_mae_encoder(x, mask)
@@ -223,12 +247,12 @@ class PointMAR(nn.Module):
 
         return loss
 
-    def sample_tokens(self, bsz, num_iter=64, cfg_schedule="linear", temperature=1.0, progress=False):
+    def sample_tokens(self, bsz, num_iter=64, cfg_schedule="linear", temperature=1.0, progress=False, return_orders=False):
 
         # init and sample generation orders
         mask = torch.ones(bsz, self.seq_len).cuda()
         tokens = torch.zeros(bsz, self.seq_len, self.token_embed_dim).cuda()
-        orders = self.sample_orders(bsz)
+        orders = self.sample_orders(bsz, raster=self.raster)
 
         indices = list(range(num_iter))
         if progress:
@@ -274,82 +298,8 @@ class PointMAR(nn.Module):
             cur_tokens[mask_to_pred.nonzero(as_tuple=True)] = sampled_token_latent
             tokens = cur_tokens.clone()
         
-        return tokens
-
-    def sample_tokens_from_points(self, points, num_buffer_iter=1, num_iter=64, cfg_schedule="linear", temperature=1.0, progress=False):
-
-        bsz = points.size(0)
-        mask = torch.ones(bsz, self.seq_len).cuda()
-        tokens = torch.zeros(bsz, self.seq_len, self.token_embed_dim).cuda()
-        orders = self.sample_orders(bsz)
-
-        buffer_indices = list(range(num_buffer_iter))
-        if progress:
-            buffer_indices = tqdm(buffer_indices)
-
-        # buffer latents
-        for buffer_step in buffer_indices:
-            # mask ratio for the next round, following MaskGIT and MAGE.
-            mask_ratio = np.cos(math.pi / 2. * (buffer_step + 1) / num_buffer_iter)
-            mask_len = torch.Tensor([np.floor(self.seq_len * mask_ratio)]).cuda()
-
-            # masks out at least one for the next iteration
-            mask_len = torch.maximum(
-                torch.Tensor([1]).cuda(),
-                torch.minimum(torch.sum(mask, dim=-1, keepdims=True) - 1, mask_len)
-            )
-
-            # get masking for next iteration and locations to be predicted in this iteration
-            mask_next = mask_by_order(mask_len[0], orders, bsz, self.seq_len)
-            mask_to_pred = torch.logical_xor(mask[:bsz].bool(), mask_next.bool())
-            mask = mask_next
-
-            tokens[mask_to_pred.nonzero(as_tuple=True)] = points[mask_to_pred.nonzero(as_tuple=True)]
-        
-        # generate latents
-        indices = list(range(num_buffer_iter, num_iter))
-        if progress:
-            indices = tqdm(indices)
-        
-        for step in indices:
-            cur_tokens = tokens.clone()
-            
-            # mae encoder
-            x = self.forward_mae_encoder(tokens, mask)
-
-            # mae decoder
-            z = self.forward_mae_decoder(x, mask)
-
-            # mask ratio for the next round, following MaskGIT and MAGE.
-            mask_ratio = np.cos(math.pi / 2. * (step + 1) / num_iter)
-            mask_len = torch.Tensor([np.floor(self.seq_len * mask_ratio)]).cuda()
-
-            # masks out at least one for the next iteration
-            mask_len = torch.maximum(torch.Tensor([1]).cuda(),
-                                     torch.minimum(torch.sum(mask, dim=-1, keepdims=True) - 1, mask_len))
-
-            # get masking for next iteration and locations to be predicted in this iteration
-            mask_next = mask_by_order(mask_len[0], orders, bsz, self.seq_len)
-            if step >= num_iter - 1:
-                mask_to_pred = mask[:bsz].bool()
-            else:
-                mask_to_pred = torch.logical_xor(mask[:bsz].bool(), mask_next.bool())
-            mask = mask_next
-
-            # sample token latents for this step
-            z = z[mask_to_pred.nonzero(as_tuple=True)]
-            # cfg schedule follow Muse
-            if cfg_schedule == "linear":
-                cfg_iter = 1
-            elif cfg_schedule == "constant":
-                cfg_iter = 1
-            else:
-                raise NotImplementedError
-            sampled_token_latent = self.diffloss.sample(z, temperature, cfg_iter)
-
-            cur_tokens[mask_to_pred.nonzero(as_tuple=True)] = sampled_token_latent
-            tokens = cur_tokens.clone()
-        
+        if return_orders:
+            return tokens, orders
         return tokens
 
 def mar_pico(**kwargs):
