@@ -22,6 +22,11 @@ spec:
         env:
         - name: PYTHONUNBUFFERED
           value: "1"
+        - name: WANDB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dokh-secret
+              key: WANDB_API_KEY
         - name: GITHUB_TOKEN
           valueFrom:
             secretKeyRef:
@@ -40,6 +45,7 @@ spec:
             git clone https://${GITHUB_TOKEN}@github.com/KhoiDOO/pointmar.git
             cd pointmar/
           fi
+          wandb login ${WANDB_API_KEY}
           OUTPUT_DIR="./outputs/shapenet/$(date +%Y%m%d_%H%M%S)"
           LOG_DIR="$OUTPUT_DIR"
           torchrun \
