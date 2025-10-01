@@ -1,12 +1,14 @@
-# PointMAR — overview and quick reference
+# PointMAR: Point Masked Continuous Auto-Regressive Model
 
 This repository implements PointMAR (Point Masked Auto-Regressive model) for 3D point-cloud modeling and generation.
 
-Sections
-- Environment Setup
-- How to run
-- Demo
-- Acknowledgement
+<p align="center">
+    <img src="https://img.shields.io/github/license/KhoiDOO/pointmar?style=flat-square" alt="License">
+    <img src="https://img.shields.io/github/stars/KhoiDOO/pointmar?style=flat-square" alt="Stars">
+    <img src="https://img.shields.io/github/issues/KhoiDOO/pointmar?style=flat-square" alt="Issues">
+    <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="https://colab.research.google.com/drive/1aSl3hx78rLjfTRQ-nSnZptwWKFA_-Iej?usp=sharing">
+    <img src="https://img.shields.io/badge/%F0%9F%A4%97%20HuggingFace-pointmar-yellow" alt="https://huggingface.co/kohido/shapenet_mar_base_1024pts_3dim">
+</p>
 
 ## 1) Environment Setup
 
