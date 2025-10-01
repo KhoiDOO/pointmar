@@ -1,0 +1,238 @@
+apiVersion: batch/v1
+kind: MNJob
+metadata:
+  name: dokh-shapenet1024-random
+spec:
+  runPolicy:
+    cleanPodPolicy: None            # keep pods until TTL fires
+    ttlSecondsAfterFinished: 60     # delete job + child pods ~60s after completion
+  pytorchReplicaSpecs:
+    Master:
+      replicas: 1
+      restartPolicy: Never
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+            scheduling.volcano.sh/queue-name: "default"   # change if your queue differs
+        spec:
+          schedulerName: volcano
+          volumes:
+          - name: project
+            persistentVolumeClaim:
+              claimName: prj-0
+          - name: dshm
+            emptyDir:
+              medium: Memory
+              sizeLimit: 16Gi
+          containers:
+            - name: shapenet1024
+              image: kohido/base_dl_cuda129:v0.0.8
+              imagePullPolicy: IfNotPresent
+              resources:
+                limits:   { nvidia.com/gpu: 4 , cpu: "24",  memory: "64Gi" }
+                requests: { nvidia.com/gpu: 4 , cpu: "24",  memory: "64Gi" }
+              env:
+              - name: PYTHONUNBUFFERED
+                value: "1"
+              - name: WANDB_API_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: dokh-secret
+                    key: WANDB_API_KEY
+              - name: GITHUB_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: dokh-secret
+                    key: GITHUB_TOKEN
+              volumeMounts:
+                - {name: project, mountPath: /mnt/project}
+                - {name: dshm, mountPath: /dev/shm}
+              command: ["/bin/bash","-lc"]
+              args:
+                - |
+                  set -e
+                  df -h
+                  cd /mnt/project
+                  if [ -d "pointmar" ]; then
+                    cd pointmar
+                    git pull
+                  else
+                    git clone https://${GITHUB_TOKEN}@github.com/KhoiDOO/pointmar.git
+                    cd pointmar/
+                  fi
+                  wandb login ${WANDB_API_KEY}
+                  OUTPUT_DIR="./outputs/shapenet/10012025_1209"
+                  LOG_DIR="$OUTPUT_DIR"
+                  torchrun \
+                  --nproc_per_node=4 \
+                  --nnodes=2 \
+                  --node-rank=0 \
+                  --rdzv_backend=c10d \
+                  --rdzv_endpoint=$MASTER_ADDR:$MASTER_PORT \
+                  main.py \
+                  --batch_size 32 \
+                  --epochs 400 \
+                  \
+                  --model mar_base \
+                  \
+                  --num_points 1024 \
+                  --token_embed_dim 3 \
+                  \
+                  --num_iter 64 \
+                  --cfg 1 \
+                  --cfg_schedule linear \
+                  --eval_freq 40 \
+                  --save_last_freq 5 \
+                  --eval_bsz 64 \
+                  --checkpoint_key loss \
+                  --checkpoint_mode min \
+                  \
+                  --weight_decay 0.02 \
+                  \
+                  --grad_checkpointing \
+                  --blr 1e-4 \
+                  --min_lr 0.0 \
+                  --lr_schedule constant \
+                  --warmup_epochs 100 \
+                  --ema_rate 0.9999 \
+                  \
+                  --mask_ratio_min 0.7 \
+                  --grad_clip 3.0 \
+                  --attn_dropout 0.1 \
+                  --proj_dropout 0.1 \
+                  --buffer_size 64 \
+                  \
+                  --num_sampling_steps 100 \
+                  --diffusion_batch_mul 1 \
+                  --temperature 1.0 \
+                  \
+                  --dataset_name shapenet \
+                  --data_path ./.cache \
+                  \
+                  --output_dir $OUTPUT_DIR \
+                  --log_dir $LOG_DIR \
+                  --seed 1 \
+                  --use_wandb \
+                  --num_workers 16 \
+                  --pin_mem
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 100
+            fsGroup: 100
+            fsGroupChangePolicy: OnRootMismatch
+    Worker:
+      replicas: 1
+      restartPolicy: Never
+      template:
+        metadata:
+          annotations:
+            sidecar.istio.io/inject: "false"
+            scheduling.volcano.sh/queue-name: "default"
+        spec:
+          schedulerName: volcano
+          volumes:
+          - name: project
+            persistentVolumeClaim:
+              claimName: prj-0
+          - name: dshm
+            emptyDir:
+              medium: Memory
+              sizeLimit: 16Gi
+          containers:
+            - name: pytorch
+              image: kohido/base_dl_cuda129:v0.0.8
+              imagePullPolicy: IfNotPresent
+              resources:
+                limits:   { nvidia.com/gpu: 4 , cpu: "24",  memory: "64Gi" }
+                requests: { nvidia.com/gpu: 4 , cpu: "24",  memory: "64Gi" }
+              env:
+              - name: GITHUB_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: dokh-secret
+                    key: GITHUB_TOKEN
+              - name: WANDB_API_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: dokh-secret
+                    key: WANDB_API_KEY
+              - name: RANK_INDEX
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.annotations['kubeflow.org/replica-index']
+              volumeMounts:
+                - {name: project, mountPath: /mnt/project}
+                - {name: dshm, mountPath: /dev/shm}
+              command: ["/bin/bash","-lc"]
+              args:
+                - |
+                  set -e
+                  df -h
+                  cd /mnt/project
+                  if [ -d "pointmar" ]; then
+                    cd pointmar
+                    git pull
+                  else
+                    git clone https://${GITHUB_TOKEN}@github.com/KhoiDOO/pointmar.git
+                    cd pointmar/
+                  fi
+                  OUTPUT_DIR="./outputs/shapenet/10012025_1209"
+                  LOG_DIR="$OUTPUT_DIR"
+                  torchrun \
+                  --nproc_per_node=4 \
+                  --nnodes=2 \
+                  --node-rank=1 \
+                  --rdzv_backend=c10d \
+                  --rdzv_endpoint=$MASTER_ADDR:$MASTER_PORT \
+                  main.py \
+                  --batch_size 32 \
+                  --epochs 400 \
+                  \
+                  --model mar_base \
+                  \
+                  --num_points 1024 \
+                  --token_embed_dim 3 \
+                  \
+                  --num_iter 64 \
+                  --cfg 1 \
+                  --cfg_schedule linear \
+                  --eval_freq 40 \
+                  --save_last_freq 5 \
+                  --eval_bsz 64 \
+                  --checkpoint_key loss \
+                  --checkpoint_mode min \
+                  \
+                  --weight_decay 0.02 \
+                  \
+                  --grad_checkpointing \
+                  --blr 1e-4 \
+                  --min_lr 0.0 \
+                  --lr_schedule constant \
+                  --warmup_epochs 100 \
+                  --ema_rate 0.9999 \
+                  \
+                  --mask_ratio_min 0.7 \
+                  --grad_clip 3.0 \
+                  --attn_dropout 0.1 \
+                  --proj_dropout 0.1 \
+                  --buffer_size 64 \
+                  \
+                  --num_sampling_steps 100 \
+                  --diffusion_batch_mul 1 \
+                  --temperature 1.0 \
+                  \
+                  --dataset_name shapenet \
+                  --data_path ./.cache \
+                  \
+                  --output_dir $OUTPUT_DIR \
+                  --log_dir $LOG_DIR \
+                  --seed 1 \
+                  --use_wandb \
+                  --num_workers 16 \
+                  --pin_mem
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 100
+            fsGroup: 100
+            fsGroupChangePolicy: OnRootMismatch
