@@ -21,7 +21,7 @@ pip install -U pip wheel
 pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu129
 
 # install dev dependencies
-pip install pytest matplotlib
+pip install pytest matplotlib opencv-python==4.12.0.88
 
 # install
 pip install -e .
