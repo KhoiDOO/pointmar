@@ -131,20 +131,9 @@ Notes:
 
 ## Results
 
-We provide 27 rendered 360° videos of sampled point clouds in `docs/samples/shapenet_mar_base_1024pts_3dim/video/`. You can view them as a 3 (width) × 9 (height) grid at:
+We provide 27 rendered 360° videos of sampled point clouds in `docs/samples/shapenet_mar_base_1024pts_3dim/video/`.
 
-- `docs/videos_grid.html` (static page in the repo). It loads the 27 `*_360view.mp4` files from the samples folder and displays them in a responsive grid.
-
-If you prefer to browse locally, run the docs server and open the page:
-
-```bash
-python -m http.server --directory docs 8000
-# open http://localhost:8000/videos_grid.html
-```
-
-### Results — GIF gallery (inline)
-
-The GIFs below are converted from the 360° MP4 renders and embedded inline for quick preview. (If the README loads slowly, use `docs/videos_grid.html` or view the `docs/samples/.../video` folder.)
+The GIFs below are converted from the 360° MP4 renders and embedded inline for quick preview. (If the README loads slowly, use the `docs/samples/.../video` folder.)
 
 | Sample 0 | Sample 1 | Sample 2 |
 |---|---|---|
