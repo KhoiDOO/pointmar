@@ -1,0 +1,102 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dokh-shapenet1024-random
+spec:
+  ttlSecondsAfterFinished: 60
+  template:
+    spec:
+      schedulerName: volcano
+      restartPolicy: Never
+      volumes:
+      - name: project
+        persistentVolumeClaim:
+          claimName: prj-0
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 16Gi
+      containers:
+      - name: shapenet1024
+        image: kohido/base_dl_cuda129:v0.0.8
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: dokh-secret
+              key: GITHUB_TOKEN
+        command: ["bash","-lc"]
+        args:
+        - |
+          set -e
+          df -h
+          cd /mnt/project
+          if [ -d "pointmar" ]; then
+            cd pointmar
+            git pull
+          else
+            git clone https://${GITHUB_TOKEN}@github.com/KhoiDOO/pointmar.git
+            cd pointmar/
+          fi
+          OUTPUT_DIR="./outputs/shapenet/$(date +%Y%m%d_%H%M%S)"
+          LOG_DIR="$OUTPUT_DIR"
+          torchrun \
+          --nproc_per_node=4 \
+          --nnodes=1 \
+          main.py \
+          --batch_size 32 \
+          --epochs 400 \
+          \
+          --model mar_base \
+          \
+          --num_points 1024 \
+          --token_embed_dim 3 \
+          \
+          --num_iter 64 \
+          --cfg 1 \
+          --cfg_schedule linear \
+          --eval_freq 40 \
+          --save_last_freq 5 \
+          --eval_bsz 64 \
+          --checkpoint_key loss \
+          --checkpoint_mode min \
+          \
+          --weight_decay 0.02 \
+          \
+          --grad_checkpointing \
+          --blr 1e-4 \
+          --min_lr 0.0 \
+          --lr_schedule constant \
+          --warmup_epochs 100 \
+          --ema_rate 0.9999 \
+          \
+          --mask_ratio_min 0.7 \
+          --grad_clip 3.0 \
+          --attn_dropout 0.1 \
+          --proj_dropout 0.1 \
+          --buffer_size 64 \
+          \
+          --num_sampling_steps 100 \
+          --diffusion_batch_mul 1 \
+          --temperature 1.0 \
+          \
+          --dataset_name shapenet \
+          --data_path ./.cache \
+          \
+          --output_dir $OUTPUT_DIR \
+          --log_dir $LOG_DIR \
+          --seed 1 \
+          --use_wandb \
+          --num_workers 16 \
+          --pin_mem \
+          \
+          --world_size 1
+
+        volumeMounts:
+        - {name: project, mountPath: /mnt/project}
+        - {name: dshm, mountPath: /dev/shm}
+        resources:
+          limits:   { nvidia.com/gpu: 4, cpu: "24",  memory: "64Gi" }
+          requests: { nvidia.com/gpu: 4, cpu: "16",  memory: "64Gi" }
