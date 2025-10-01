@@ -133,21 +133,6 @@ class PointMAR(nn.Module):
         orders = torch.Tensor(np.array(orders)).cuda().long()
         return orders
 
-    def raster_order_masking(self, x: torch.Tensor):
-        bsz, seq_len, embed_dim = x.shape
-        mask_rate = self.mask_ratio_generator.rvs(1)[0]
-        num_masked_tokens = int(np.ceil(seq_len * mask_rate))
-        num_visible_tokens = seq_len - num_masked_tokens
-        
-        # Create mask: first tokens are visible (0), later tokens are masked (1)
-        mask = torch.ones(bsz, seq_len, device=x.device)  # Start with all masked
-        
-        # Set first num_visible_tokens to 0 (visible)
-        visible_indices = torch.arange(num_visible_tokens, device=x.device).unsqueeze(0).repeat(bsz, 1)
-        mask = torch.scatter(mask, dim=-1, index=visible_indices, src=torch.zeros(bsz, num_visible_tokens, device=x.device))
-        
-        return mask
-
     def random_masking(self, x: torch.Tensor, orders: torch.Tensor):
         # generate token mask
         bsz, seq_len, embed_dim = x.shape
@@ -450,8 +435,8 @@ def mar_huge(**kwargs):
 class PointMARPipeline(
     PointMAR,
     PyTorchModelHubMixin,
-    repo_url="https://github.com/KhoiDOO/point-by-point",
-    docs_url="https://github.com/KhoiDOO/point-by-point",
+    repo_url="https://github.com/KhoiDOO/pointmar",
+    docs_url="https://github.com/KhoiDOO/pointmar",
     pipeline_tag="image-to-image",
     license="mit"
 ):
