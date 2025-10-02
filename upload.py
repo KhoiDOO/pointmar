@@ -31,7 +31,6 @@ if __name__ == "__main__":
 
     best_checkpoint = os.path.join(args.path, 'checkpoint-best.pth')
     last_checkpoint = os.path.join(args.path, 'checkpoint-last.pth')
-    print(last_checkpoint, os.path.exists(last_checkpoint))
     if args.last:
         checkpoint_path = last_checkpoint
     elif os.path.exists(best_checkpoint):
@@ -43,7 +42,7 @@ if __name__ == "__main__":
 
     pipeline.load(checkpoint_path)
 
-    repo_id = f"{exp_config.dataset_name}_{exp_config.model}_{exp_config.num_points}pts_{exp_config.token_embed_dim}dim"
+    repo_id = f"{exp_config.dataset_name}_{exp_config.model}_{exp_config.num_points}pts_{exp_config.token_embed_dim}dim_{'last' if args.last else 'best'}"
 
     try:
         pipeline.push_to_hub(repo_id=repo_id)
