@@ -22,8 +22,8 @@ spec:
               image: kohido/base_dl_cuda129:v0.0.8
               imagePullPolicy: IfNotPresent
               resources:
-                limits:   { nvidia.com/gpu: 4}
-                requests: { nvidia.com/gpu: 4}
+                limits:   { nvidia.com/gpu: 4 }
+                requests: { nvidia.com/gpu: 4 }
               env:
               - name: PYTHONUNBUFFERED
                 value: "1"
@@ -136,8 +136,8 @@ spec:
               image: kohido/base_dl_cuda129:v0.0.8
               imagePullPolicy: IfNotPresent
               resources:
-                limits:   { nvidia.com/gpu: 4 , cpu: "24",  memory: "64Gi" }
-                requests: { nvidia.com/gpu: 4 , cpu: "24",  memory: "64Gi" }
+                limits:   { nvidia.com/gpu: 4 }
+                requests: { nvidia.com/gpu: 4 }
               env:
               - name: GITHUB_TOKEN
                 valueFrom:
