@@ -41,8 +41,7 @@ class PointMAR(nn.Module):
         diffloss_w:int=1024,
         num_sampling_steps:str="100",
         diffusion_batch_mul:int=4,
-        grad_checkpointing:bool=False,
-        raster:bool=False,
+        grad_checkpointing:bool=False
     ):
         super().__init__()
 
@@ -101,10 +100,6 @@ class PointMAR(nn.Module):
         )
         self.diffusion_batch_mul = diffusion_batch_mul
 
-        # --------------------------------------------------------------------------
-        # Raster-specific
-        self.raster = raster
-
     def initialize_weights(self):
         # parameters
         torch.nn.init.normal_(self.fake_latent, std=.02)
@@ -128,13 +123,11 @@ class PointMAR(nn.Module):
             if m.weight is not None:
                 nn.init.constant_(m.weight, 1.0)
 
-    def sample_orders(self, bsz, raster=False):
+    def sample_orders(self, bsz):
         # generate a batch of random generation orders
         orders = []
         for _ in range(bsz):
             order = np.array(list(range(self.seq_len)))
-            if not raster:
-                np.random.shuffle(order)
             orders.append(order)
         orders = torch.Tensor(np.array(orders)).cuda().long()
         return orders
@@ -230,11 +223,8 @@ class PointMAR(nn.Module):
         # patchify and mask (drop) tokens
         x = points
         gt_latents = x.clone().detach()
-        if self.raster:
-            mask = self.raster_order_masking(x)
-        else:
-            orders = self.sample_orders(bsz=x.size(0), raster=self.raster)
-            mask = self.random_masking(x, orders)
+        orders = self.sample_orders(bsz=x.size(0))
+        mask = self.random_masking(x, orders)
 
         # mae encoder
         x = self.forward_mae_encoder(x, mask)
@@ -252,7 +242,7 @@ class PointMAR(nn.Module):
         # init and sample generation orders
         mask = torch.ones(bsz, self.seq_len).cuda()
         tokens = torch.zeros(bsz, self.seq_len, self.token_embed_dim).cuda()
-        orders = self.sample_orders(bsz, raster=self.raster)
+        orders = self.sample_orders(bsz)
 
         indices = list(range(num_iter))
         if progress:
@@ -273,8 +263,13 @@ class PointMAR(nn.Module):
             mask_len = torch.Tensor([np.floor(self.seq_len * mask_ratio)]).cuda()
 
             # masks out at least one for the next iteration
-            mask_len = torch.maximum(torch.Tensor([1]).cuda(),
-                                     torch.minimum(torch.sum(mask, dim=-1, keepdims=True) - 1, mask_len))
+            mask_len = torch.maximum(
+                torch.Tensor([1]).cuda(),
+                torch.minimum(
+                    torch.sum(mask, dim=-1, keepdims=True) - 1, 
+                    mask_len
+                )
+            )
 
             # get masking for next iteration and locations to be predicted in this iteration
             mask_next = mask_by_order(mask_len[0], orders, bsz, self.seq_len)

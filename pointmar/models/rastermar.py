@@ -17,17 +17,16 @@ import numpy as np
 import torch.nn as nn
 
 
-def mask_by_order(mask_len, order, bsz, seq_len):
-    masking = torch.zeros(bsz, seq_len).cuda()
-    masking = torch.scatter(masking, dim=-1, index=order[:, :mask_len.long()], src=torch.ones(bsz, seq_len).cuda()).bool()
-    return masking
-
-
 class RasterPointMAR(PointMAR):
-    def __init__(self, **kwargs):
-        assert 'raster' not in kwargs, "raster should not be passed as a keyword argument"
-        super().__init__(raster=True, **kwargs)
-        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    def sample_orders(self, bsz):
+        order = np.arange(self.seq_len)
+        orders = np.tile(order, (bsz, 1))
+        orders = torch.tensor(orders, dtype=torch.long).cuda()
+        return orders
+
 
 def raster_mar_pico(**kwargs):
     model = RasterPointMAR(
