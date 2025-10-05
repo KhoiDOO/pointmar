@@ -4,8 +4,8 @@ metadata:
   name: dokh-shapenet1024-random
 spec:
   runPolicy:
-    cleanPodPolicy: None            # keep pods until TTL fires
-    ttlSecondsAfterFinished: 60     # delete job + child pods ~60s after completion
+    cleanPodPolicy: None
+    ttlSecondsAfterFinished: 300
   pytorchReplicaSpecs:
     Master:
       replicas: 1
