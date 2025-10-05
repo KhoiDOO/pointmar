@@ -18,7 +18,7 @@ spec:
         spec:
           schedulerName: volcano
           containers:
-            - name: shapenet1024
+            - name: pytorch
               image: kohido/base_dl_cuda129:v0.0.8
               imagePullPolicy: IfNotPresent
               resources:
