@@ -47,8 +47,10 @@ spec:
                     df -h
                     cd /mnt/project
                     # prevent: fatal: detected dubious ownership in repository
-                    # write safe.directory to a temp git config (no home dir / permission issues)
-                    git config --file /tmp/.gitconfig --add safe.directory /mnt/project/pointmar || true
+                    # ensure git global config is writable by using /tmp as HOME
+                    export HOME=/tmp
+                    export XDG_CONFIG_HOME=/tmp
+                    git config --global --add safe.directory /mnt/project/pointmar || true
                     if [ -d "pointmar" ]; then
                       cd pointmar
                       git pull
@@ -166,8 +168,10 @@ spec:
                     df -h
                     cd /mnt/project
                     # prevent: fatal: detected dubious ownership in repository
-                    # write safe.directory to a temp git config (no home dir / permission issues)
-                    git config --file /tmp/.gitconfig --add safe.directory /mnt/project/pointmar || true
+                    # ensure git global config is writable by using /tmp as HOME
+                    export HOME=/tmp
+                    export XDG_CONFIG_HOME=/tmp
+                    git config --global --add safe.directory /mnt/project/pointmar || true
                     if [ -d "pointmar" ]; then
                       cd pointmar
                       git pull
