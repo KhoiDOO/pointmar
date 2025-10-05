@@ -1,4 +1,4 @@
-from pointmar.models import mar
+from pointmar import models
 from pointmar.models.mar import PointMARPipeline
 from pointmar.util.config import load_args_from_json
 
@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     exp_config = load_args_from_json(os.path.join(args.path, 'config.json'))
 
-    pipeline: PointMARPipeline = mar.__dict__[f"{exp_config.model}_pipeline"](
+    pipeline: PointMARPipeline = models.__dict__[f"{exp_config.model}_pipeline"](
         num_points=exp_config.num_points,
         token_embed_dim=exp_config.token_embed_dim,
         mask_ratio_min=exp_config.mask_ratio_min,
