@@ -48,11 +48,13 @@ spec:
                     cd /mnt/project
                     if [ -d "pointmar" ]; then
                       cd pointmar
+                      git config --global --add safe.directory /mnt/project/pointmar
                       git pull
                     else
                       git clone https://${GITHUB_TOKEN}@github.com/KhoiDOO/pointmar.git
                       cd pointmar/
                     fi
+                    git config --global --add safe.directory /mnt/project/pointmar
                     wandb login ${WANDB_API_KEY}
                     OUTPUT_DIR="./outputs/shapenet/10012025_1209"
                     LOG_DIR="$OUTPUT_DIR"
@@ -164,6 +166,7 @@ spec:
                     cd /mnt/project
                     if [ -d "pointmar" ]; then
                       cd pointmar
+                      git config --global --add safe.directory /mnt/project/pointmar
                       git pull
                     else
                       git clone https://${GITHUB_TOKEN}@github.com/KhoiDOO/pointmar.git
