@@ -46,15 +46,16 @@ spec:
                     set -e
                     df -h
                     cd /mnt/project
+                    # prevent: fatal: detected dubious ownership in repository
+                    # allow git operations when the mounted repo is owned by a different uid
+                    git config --global --add safe.directory /mnt/project/pointmar || true
                     if [ -d "pointmar" ]; then
                       cd pointmar
-                      git config --global --add safe.directory /mnt/project/pointmar
                       git pull
                     else
                       git clone https://${GITHUB_TOKEN}@github.com/KhoiDOO/pointmar.git
-                      cd pointmar/
+                      cd pointmar
                     fi
-                    git config --global --add safe.directory /mnt/project/pointmar
                     wandb login ${WANDB_API_KEY}
                     OUTPUT_DIR="./outputs/shapenet/10012025_1209"
                     LOG_DIR="$OUTPUT_DIR"
@@ -164,9 +165,11 @@ spec:
                     set -e
                     df -h
                     cd /mnt/project
+                    # prevent: fatal: detected dubious ownership in repository
+                    # allow git operations when the mounted repo is owned by a different uid
+                    git config --global --add safe.directory /mnt/project/pointmar || true
                     if [ -d "pointmar" ]; then
                       cd pointmar
-                      git config --global --add safe.directory /mnt/project/pointmar
                       git pull
                     else
                       git clone https://${GITHUB_TOKEN}@github.com/KhoiDOO/pointmar.git
