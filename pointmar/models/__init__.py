@@ -27,3 +27,18 @@ from .rastermar import (
     raster_mar_large_pipeline,
     raster_mar_huge_pipeline,
 )
+
+from .xmar import (
+    xmar_pico,
+    xmar_tiny,
+    xmar_small,
+    xmar_base,
+    xmar_large,
+    xmar_huge,
+    xmar_pico_pipeline,
+    xmar_tiny_pipeline,
+    xmar_small_pipeline,
+    xmar_base_pipeline,
+    xmar_large_pipeline,
+    xmar_huge_pipeline,
+)
