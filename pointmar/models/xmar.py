@@ -78,6 +78,7 @@ class XPointMAR(nn.Module):
             ff_mult=mlp_ratio,
             attn_dropout=attn_dropout,
             ff_dropout=proj_dropout,
+            attn_flash=True
         )
 
         # --------------------------------------------------------------------------
@@ -98,6 +99,7 @@ class XPointMAR(nn.Module):
             ff_mult=mlp_ratio,
             attn_dropout=attn_dropout,
             ff_dropout=proj_dropout,
+            attn_flash=True
         )
         self.diffusion_pos_embed_learned = nn.Parameter(torch.zeros(1, self.seq_len, decoder_embed_dim))
 
