@@ -17,6 +17,17 @@ spec:
             scheduling.volcano.sh/queue-name: "default"   # change if your queue differs
         spec:
           schedulerName: volcano
+          initContainers:
+            - name: init-chown-project
+              image: busybox
+              command: ["sh", "-c", "chmod 0775 /mnt/project || true; chown -R 1000:100 /mnt/project || true"]
+              volumeMounts:
+                - name: project
+                  mountPath: /mnt/project
+              securityContext:
+                runAsUser: 0
+                runAsGroup: 0
+                allowPrivilegeEscalation: false
           containers:
             - name: pytorch
               image: kohido/base_dl_cuda129:v0.0.8
@@ -46,8 +57,6 @@ spec:
                     set -e
                     df -h
                     cd /mnt/project
-                    # prevent: fatal: detected dubious ownership in repository
-                    # ensure git global config is writable by using /tmp as HOME
                     if [ -d "pointmar" ]; then
                       cd pointmar
                       git pull
@@ -133,6 +142,17 @@ spec:
             scheduling.volcano.sh/queue-name: "default"
         spec:
           schedulerName: volcano
+          initContainers:
+            - name: init-chown-project
+              image: busybox
+              command: ["sh", "-c", "chmod 0775 /mnt/project || true; chown -R 1000:100 /mnt/project || true"]
+              volumeMounts:
+                - name: project
+                  mountPath: /mnt/project
+              securityContext:
+                runAsUser: 0
+                runAsGroup: 0
+                allowPrivilegeEscalation: false
           containers:
             - name: pytorch
               image: kohido/base_dl_cuda129:v0.0.8
