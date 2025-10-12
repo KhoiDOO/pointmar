@@ -46,6 +46,9 @@ spec:
                     set -e
                     df -h
                     cd /mnt/project
+                    export HOME=/tmp
+                    export XDG_CONFIG_HOME=/tmp
+                    mkdir -p /tmp/.cache || true
                     if [ -d "pointmar" ]; then
                       cd pointmar
                       git pull
@@ -158,6 +161,9 @@ spec:
                     set -e
                     df -h
                     cd /mnt/project
+                    export HOME=/tmp
+                    export XDG_CONFIG_HOME=/tmp
+                    mkdir -p /tmp/.cache || true
                     if [ -d "pointmar" ]; then
                       cd pointmar
                       git pull
