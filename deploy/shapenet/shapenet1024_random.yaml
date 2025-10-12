@@ -116,7 +116,7 @@ spec:
           volumes:
           - name: project
             persistentVolumeClaim:
-              claimName: prj-0
+              claimName: prj-1
           - name: dshm
             emptyDir:
               medium: Memory
@@ -232,7 +232,7 @@ spec:
           volumes:
           - name: project
             persistentVolumeClaim:
-              claimName: prj-0
+              claimName: prj-1
           - name: dshm
             emptyDir:
               medium: Memory
