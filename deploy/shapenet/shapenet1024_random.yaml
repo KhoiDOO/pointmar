@@ -100,7 +100,7 @@ spec:
                     --temperature 1.0 \
                     \
                     --dataset_name shapenet \
-                    --data_path "./.cache" \
+                    --data_path ".cache" \
                     \
                     --output_dir $OUTPUT_DIR \
                     --log_dir $LOG_DIR \
@@ -211,7 +211,7 @@ spec:
                     --temperature 1.0 \
                     \
                     --dataset_name shapenet \
-                    --data_path "./.cache" \
+                    --data_path ".cache" \
                     \
                     --output_dir $OUTPUT_DIR \
                     --log_dir $LOG_DIR \
