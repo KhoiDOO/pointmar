@@ -1,7 +1,7 @@
 apiVersion: kubeflow.org/v1
 kind: PyTorchJob
 metadata:
-  name: dokh-shapenet1024-raster
+  name: dokh-shapenet1024-random
 spec:
   runPolicy:
     cleanPodPolicy: None
@@ -46,11 +46,9 @@ spec:
                     set -e
                     df -h
                     cd /mnt/project
-                    # prevent: fatal: detected dubious ownership in repository
-                    # ensure git global config is writable by using /tmp as HOME
                     export HOME=/tmp
                     export XDG_CONFIG_HOME=/tmp
-                    git config --global --add safe.directory /mnt/project/pointmar || true
+                    mkdir -p /tmp/.cache || true
                     if [ -d "pointmar" ]; then
                       cd pointmar
                       git pull
@@ -105,7 +103,7 @@ spec:
                     --temperature 1.0 \
                     \
                     --dataset_name shapenet \
-                    --data_path ./.cache \
+                    --data_path ".cache" \
                     \
                     --output_dir $OUTPUT_DIR \
                     --log_dir $LOG_DIR \
@@ -154,10 +152,6 @@ spec:
                   secretKeyRef:
                     name: dokh-secret
                     key: WANDB_API_KEY
-              # - name: RANK_INDEX
-              #   valueFrom:
-              #     fieldRef:
-              #       fieldPath: metadata.annotations['kubeflow.org/replica-index']
               volumeMounts:
                 - {name: project, mountPath: /mnt/project}
                 - {name: dshm, mountPath: /dev/shm}
@@ -167,11 +161,9 @@ spec:
                     set -e
                     df -h
                     cd /mnt/project
-                    # prevent: fatal: detected dubious ownership in repository
-                    # ensure git global config is writable by using /tmp as HOME
                     export HOME=/tmp
                     export XDG_CONFIG_HOME=/tmp
-                    git config --global --add safe.directory /mnt/project/pointmar || true
+                    mkdir -p /tmp/.cache || true
                     if [ -d "pointmar" ]; then
                       cd pointmar
                       git pull
@@ -225,7 +217,7 @@ spec:
                     --temperature 1.0 \
                     \
                     --dataset_name shapenet \
-                    --data_path ./.cache \
+                    --data_path ".cache" \
                     \
                     --output_dir $OUTPUT_DIR \
                     --log_dir $LOG_DIR \
