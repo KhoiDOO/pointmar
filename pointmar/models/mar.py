@@ -128,6 +128,7 @@ class PointMAR(nn.Module):
         orders = []
         for _ in range(bsz):
             order = np.array(list(range(self.seq_len)))
+            np.random.shuffle(order)
             orders.append(order)
         orders = torch.Tensor(np.array(orders)).cuda().long()
         return orders
