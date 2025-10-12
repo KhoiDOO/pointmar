@@ -51,6 +51,7 @@ spec:
                     mkdir -p /tmp/.cache || true
                     if [ -d "pointmar" ]; then
                       cd pointmar
+                      git config --global --add safe.directory /mnt/project/pointmar
                       git pull
                     else
                       git clone https://${GITHUB_TOKEN}@github.com/KhoiDOO/pointmar.git
@@ -166,6 +167,7 @@ spec:
                     mkdir -p /tmp/.cache || true
                     if [ -d "pointmar" ]; then
                       cd pointmar
+                      git config --global --add safe.directory /mnt/project/pointmar
                       git pull
                     else
                       git clone https://${GITHUB_TOKEN}@github.com/KhoiDOO/pointmar.git
