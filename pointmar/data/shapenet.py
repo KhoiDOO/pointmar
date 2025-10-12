@@ -8,6 +8,8 @@ from scipy.spatial.transform import Rotation
 import numpy as np
 import torch
 import random
+import os
+
 
 class ShapeNet(Dataset):
     def __init__(
@@ -24,7 +26,7 @@ class ShapeNet(Dataset):
         if num_points not in [1024, 4096]:
             raise ValueError("num_points should be 1024 or 4096 for ShapeNet dataset")
 
-        self._root = root
+        self._root = os.path.join(os.getcwd(), root)
         self._num_points = num_points
         self._dataset = load_dataset(f"kohido/shapenet_{num_points}pts", cache_dir=self._root)['train']
 
