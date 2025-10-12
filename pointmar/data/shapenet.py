@@ -27,6 +27,7 @@ class ShapeNet(Dataset):
             raise ValueError("num_points should be 1024 or 4096 for ShapeNet dataset")
 
         self._root = os.path.join(os.getcwd(), root)
+        os.makedirs(self._root, exist_ok=True)
         self._num_points = num_points
         self._dataset = load_dataset(f"kohido/shapenet_{num_points}pts", cache_dir=self._root)['train']
 
