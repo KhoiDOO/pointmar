@@ -25,6 +25,7 @@ import sys
 
 def get_args_parser():
     parser = argparse.ArgumentParser('MAR training with Diffusion Loss', add_help=False)
+    parser.add_argument('--eff_batch_size', default=None, type=int, help='Effective batch size of all GPUs (overrides --batch_size)')
     parser.add_argument('--batch_size', default=16, type=int, help='Batch size per GPU (effective batch size is batch_size * # gpus)')
     parser.add_argument('--epochs', default=400, type=int)
 
@@ -41,8 +42,6 @@ def get_args_parser():
     parser.add_argument('--cfg_schedule', default="linear", type=str)
     parser.add_argument('--eval_freq', type=int, default=40, help='evaluation frequency')
     parser.add_argument('--save_last_freq', type=int, default=5, help='save last frequency')
-    parser.add_argument('--online_eval', action='store_true')
-    parser.add_argument('--evaluate', action='store_true')
     parser.add_argument('--eval_bsz', type=int, default=64, help='generation batch size')
     parser.add_argument('--checkpoint_key', type=str, default='loss', help='key to use to determine best checkpoint')
     parser.add_argument('--checkpoint_mode', type=str, default='min', help='mode to use to determine best checkpoint', choices=['min', 'max'])
@@ -192,7 +191,11 @@ def main(args):
                 # best-effort: don't fail if watch isn't supported for some objects
                 print(f"Failed to watch model with wandb: {e}")
 
-    eff_batch_size = args.batch_size * misc.get_world_size()
+    if args.eff_batch_size is not None:
+        eff_batch_size = args.eff_batch_size
+    else:
+        eff_batch_size = args.batch_size * misc.get_world_size()
+        args.eff_batch_size = eff_batch_size
 
     if args.lr is None:  # only base_lr is specified
         args.lr = args.blr * eff_batch_size / 256
@@ -240,10 +243,6 @@ def main(args):
         model_params = list(model_without_ddp.parameters())
         ema_params = copy.deepcopy(model_params)
         print("Training from scratch")
-
-    # evaluate FID and IS
-    if args.evaluate:
-        raise NotImplementedError
 
     # training
     if args.checkpoint_mode == 'min':
@@ -311,17 +310,6 @@ def main(args):
                     ema_params=ema_params, 
                     epoch_name="best"
                 )
-
-        # online evaluation
-        if args.online_eval and (epoch % args.eval_freq == 0 or epoch + 1 == args.epochs):
-            raise NotImplementedError("Online evaluation is not implemented")
-            torch.cuda.empty_cache()
-            evaluate(model_without_ddp, vae, ema_params, args, epoch, batch_size=args.eval_bsz, log_writer=log_writer,
-                     cfg=1.0, use_ema=True)
-            if not (args.cfg == 1.0 or args.cfg == 0.0):
-                evaluate(model_without_ddp, vae, ema_params, args, epoch, batch_size=args.eval_bsz // 2,
-                         log_writer=log_writer, cfg=args.cfg, use_ema=True)
-            torch.cuda.empty_cache()
 
         if misc.is_main_process():
             if log_writer is not None:

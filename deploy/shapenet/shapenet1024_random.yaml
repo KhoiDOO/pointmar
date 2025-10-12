@@ -68,10 +68,10 @@ spec:
                     --rdzv_backend=c10d \
                     --rdzv_endpoint=$MASTER_ADDR:$MASTER_PORT \
                     main.py \
-                    --batch_size 32 \
+                    --eff_batch_size 128 \
                     --epochs 400 \
                     \
-                    --model raster_mar_base \
+                    --model mar_base \
                     \
                     --num_points 1024 \
                     --token_embed_dim 3 \
@@ -154,10 +154,6 @@ spec:
                   secretKeyRef:
                     name: dokh-secret
                     key: WANDB_API_KEY
-              # - name: RANK_INDEX
-              #   valueFrom:
-              #     fieldRef:
-              #       fieldPath: metadata.annotations['kubeflow.org/replica-index']
               volumeMounts:
                 - {name: project, mountPath: /mnt/project}
                 - {name: dshm, mountPath: /dev/shm}
@@ -188,10 +184,10 @@ spec:
                     --rdzv_backend=c10d \
                     --rdzv_endpoint=$MASTER_ADDR:$MASTER_PORT \
                     main.py \
-                    --batch_size 32 \
+                    --eff_batch_size 128 \
                     --epochs 400 \
                     \
-                    --model raster_mar_base \
+                    --model mar_base \
                     \
                     --num_points 1024 \
                     --token_embed_dim 3 \
