@@ -1,7 +1,7 @@
 apiVersion: kubeflow.org/v1
 kind: PyTorchJob
 metadata:
-  name: dokh-shapenet1024-random
+  name: dokh-shapenet1024-mar-raster
 spec:
   runPolicy:
     cleanPodPolicy: None
@@ -51,7 +51,6 @@ spec:
                     mkdir -p /tmp/.cache || true
                     if [ -d "pointmar" ]; then
                       cd pointmar
-                      git config --global --add safe.directory /mnt/project/pointmar
                       git pull
                     else
                       git clone https://${GITHUB_TOKEN}@github.com/KhoiDOO/pointmar.git
@@ -70,7 +69,7 @@ spec:
                     --eff_batch_size 128 \
                     --epochs 400 \
                     \
-                    --model mar_base \
+                    --model raster_mar_base \
                     \
                     --num_points 1024 \
                     --token_embed_dim 3 \
@@ -167,7 +166,6 @@ spec:
                     mkdir -p /tmp/.cache || true
                     if [ -d "pointmar" ]; then
                       cd pointmar
-                      git config --global --add safe.directory /mnt/project/pointmar
                       git pull
                     else
                       git clone https://${GITHUB_TOKEN}@github.com/KhoiDOO/pointmar.git
@@ -185,7 +183,7 @@ spec:
                     --eff_batch_size 128 \
                     --epochs 400 \
                     \
-                    --model mar_base \
+                    --model raster_mar_base \
                     \
                     --num_points 1024 \
                     --token_embed_dim 3 \

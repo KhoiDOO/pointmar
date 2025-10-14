@@ -3,7 +3,7 @@ from functools import partial
 from tqdm import tqdm
 from torch.utils.checkpoint import checkpoint
 
-from x_transformers.x_transformers import Encoder
+from x_transformers.x_transformers import AttentionLayers
 from .diffloss import DiffLoss
 
 from huggingface_hub import PyTorchModelHubMixin
@@ -40,7 +40,8 @@ class XPointMAR(nn.Module):
         diffloss_w:int=1024,
         num_sampling_steps:str="100",
         diffusion_batch_mul:int=4,
-        grad_checkpointing:bool=False
+        grad_checkpointing:bool=False,
+        causal:bool=False,
     ):
         super().__init__()
 
@@ -67,18 +68,16 @@ class XPointMAR(nn.Module):
         self.buffer_size = buffer_size
         self.encoder_pos_embed_learned = nn.Parameter(torch.zeros(1, self.seq_len + self.buffer_size, encoder_embed_dim))
 
-        # self.encoder_blocks = nn.ModuleList([
-        #     Block(encoder_embed_dim, encoder_num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer,
-        #           proj_drop=proj_dropout, attn_drop=attn_dropout) for _ in range(encoder_depth)])
-        # self.encoder_norm = norm_layer(encoder_embed_dim)
-        self.encoder = Encoder(
+        self.causal = causal
+        self.encoder = AttentionLayers(
             dim=encoder_embed_dim,
             depth=encoder_depth,
             heads=encoder_num_heads,
             ff_mult=mlp_ratio,
             attn_dropout=attn_dropout,
             ff_dropout=proj_dropout,
-            attn_flash=True
+            attn_flash=True,
+            causal=causal
         )
 
         # --------------------------------------------------------------------------
@@ -87,19 +86,15 @@ class XPointMAR(nn.Module):
         self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
         self.decoder_pos_embed_learned = nn.Parameter(torch.zeros(1, self.seq_len + self.buffer_size, decoder_embed_dim))
 
-        # self.decoder_blocks = nn.ModuleList([
-        #     Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer,
-        #           proj_drop=proj_dropout, attn_drop=attn_dropout) for _ in range(decoder_depth)])
-
-        # self.decoder_norm = norm_layer(decoder_embed_dim)
-        self.decoder = Encoder(
+        self.decoder = AttentionLayers(
             dim=decoder_embed_dim,
             depth=decoder_depth,
             heads=decoder_num_heads,
             ff_mult=mlp_ratio,
             attn_dropout=attn_dropout,
             ff_dropout=proj_dropout,
-            attn_flash=True
+            attn_flash=True,
+            causal=causal
         )
         self.diffusion_pos_embed_learned = nn.Parameter(torch.zeros(1, self.seq_len, decoder_embed_dim))
 
