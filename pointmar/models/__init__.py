@@ -42,3 +42,18 @@ from .xmar import (
     xmar_large_pipeline,
     xmar_huge_pipeline,
 )
+
+from .xcmar import (
+    xcmar_pico,
+    xcmar_tiny,
+    xcmar_small,
+    xcmar_base,
+    xcmar_large,
+    xcmar_huge,
+    xcmar_pico_pipeline,
+    xcmar_tiny_pipeline,
+    xcmar_small_pipeline,
+    xcmar_base_pipeline,
+    xcmar_large_pipeline,
+    xcmar_huge_pipeline,
+)
