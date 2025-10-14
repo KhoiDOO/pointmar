@@ -31,6 +31,7 @@ def get_args_parser():
 
     # Model parameters
     parser.add_argument('--model', default='mar_large', type=str, metavar='MODEL', help='Name of model to train')
+    parser.add_argument('--causal', action='store_true', help='Use causal attention in the decoder')
 
     # VAE parameters
     parser.add_argument('--num_points', default=1024, type=int, help='number of points in the input point cloud')
@@ -38,8 +39,6 @@ def get_args_parser():
 
     # Generation parameters
     parser.add_argument('--num_iter', default=64, type=int, help='number of autoregressive iterations to generate an image')
-    parser.add_argument('--cfg', default=1.0, type=float, help="classifier-free guidance")
-    parser.add_argument('--cfg_schedule', default="linear", type=str)
     parser.add_argument('--eval_freq', type=int, default=40, help='evaluation frequency')
     parser.add_argument('--save_last_freq', type=int, default=5, help='save last frequency')
     parser.add_argument('--eval_bsz', type=int, default=64, help='generation batch size')
